@@ -4,25 +4,17 @@
   <version>0.0.0</version>
   <description>A collection of ROS interfaces for industrial_reconstruction</description>
 
-  <author email="levi.armstrong@swri.org">Levi Armstrong</author>
+  <author>Levi Armstrong</author>
   <maintainer email="tyler.marr@swri.org">Tyler Marr</maintainer>
   <license>Apache2</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
 
-  <exec_depend>rosidl_default_runtime</exec_depend>
-  <member_of_group>rosidl_interface_packages</member_of_group>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>message_runtime</build_export_depend>
 
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>launch_ros</exec_depend>
-  <exec_depend>launch</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
 
-  <export>
-    <build_type>ament_cmake</build_type>
-  </export>
-
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
 </package>
