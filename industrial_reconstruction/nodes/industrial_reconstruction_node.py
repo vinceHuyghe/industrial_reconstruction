@@ -33,12 +33,14 @@ from cv_bridge import CvBridge, CvBridgeError
 # OpenCV2 for saving an image
 from visualization_msgs.msg import Marker
 
+
 def filterNormals(mesh, direction, angle):
-   mesh.compute_vertex_normals()
-   tri_normals = np.asarray(mesh.triangle_normals)
-   dot_prods = tri_normals @ direction
-   mesh.remove_triangles_by_mask(dot_prods < np.cos(angle))
-   return mesh
+    mesh.compute_vertex_normals()
+    tri_normals = np.asarray(mesh.triangle_normals)
+    dot_prods = tri_normals @ direction
+    mesh.remove_triangles_by_mask(dot_prods < np.cos(angle))
+    return mesh
+
 
 class IndustrialReconstruction(object):
 
@@ -114,23 +116,28 @@ class IndustrialReconstruction(object):
         rospy.loginfo("depth_image_topic - " + self.depth_image_topic)
         rospy.loginfo("color_image_topic - " + self.color_image_topic)
         rospy.loginfo("camera_info_topic - " + self.camera_info_topic)
-
-        self.depth_sub = message_filters.Subscriber(self.depth_image_topic, Image)
-        self.color_sub = message_filters.Subscriber(self.color_image_topic, Image)
+       
+        self.depth_sub = message_filters.Subscriber(
+            self.depth_image_topic, Image)
+        self.color_sub = message_filters.Subscriber(
+            self.color_image_topic, Image)
         self.tss = message_filters.ApproximateTimeSynchronizer([self.depth_sub, self.color_sub], self.cache_count, self.slop,
-                                               allow_headerless)
+                                                               allow_headerless)
         self.tss.registerCallback(self.cameraCallback)
 
-        self.info_sub = rospy.Subscriber(self.camera_info_topic, CameraInfo, self.cameraInfoCallback, queue_size=10)
+        self.info_sub = rospy.Subscriber(
+            self.camera_info_topic, CameraInfo, self.cameraInfoCallback, queue_size=10)
 
-        self.mesh_pub = rospy.Publisher("industrial_reconstruction_mesh", Marker, queue_size=10)
+        self.mesh_pub = rospy.Publisher(
+            "industrial_reconstruction_mesh", Marker, queue_size=10)
 
         self.start_server = rospy.Service('start_reconstruction', StartReconstruction,
-                                                self.startReconstructionCallback)
+                                          self.startReconstructionCallback)
         self.stop_server = rospy.Service('stop_reconstruction', StopReconstruction,
-                                               self.stopReconstructionCallback)
+                                         self.stopReconstructionCallback)
 
-        self.tsdf_volume_pub = rospy.Publisher("tsdf_volume", Marker, queue_size=10)
+        self.tsdf_volume_pub = rospy.Publisher(
+            "tsdf_volume", Marker, queue_size=10)
 
         rospy.loginfo("init complete")
 
@@ -146,11 +153,13 @@ class IndustrialReconstruction(object):
 
         for s in range(len(self.color_images)):
             # Save your OpenCV2 image as a jpeg
-            o3d.io.write_image("%s/%06d.png" % (path_depth, s), self.depth_images[s])
-            o3d.io.write_image("%s/%06d.jpg" % (path_color, s), self.color_images[s])
+            o3d.io.write_image("%s/%06d.png" %
+                               (path_depth, s), self.depth_images[s])
+            o3d.io.write_image("%s/%06d.jpg" %
+                               (path_color, s), self.color_images[s])
             write_pose("%s/%06d.pose" % (path_pose, s), self.rgb_poses[s])
-            save_intrinsic_as_json(join(path_output, "camera_intrinsic.json"), self.intrinsics)
-
+            save_intrinsic_as_json(
+                join(path_output, "camera_intrinsic.json"), self.intrinsics)
 
     def startReconstructionCallback(self, req):
         rospy.loginfo(" Start Reconstruction")
@@ -173,7 +182,8 @@ class IndustrialReconstruction(object):
                 [req.tsdf_params.min_box_values.x, req.tsdf_params.min_box_values.y, req.tsdf_params.min_box_values.z])
             max_bound = np.asarray(
                 [req.tsdf_params.max_box_values.x, req.tsdf_params.max_box_values.y, req.tsdf_params.max_box_values.z])
-            self.crop_box = o3d.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
+            self.crop_box = o3d.geometry.AxisAlignedBoundingBox(
+                min_bound, max_bound)
 
             self.crop_box_msg.type = self.crop_box_msg.CUBE
             self.crop_box_msg.action = self.crop_box_msg.ADD
@@ -181,9 +191,12 @@ class IndustrialReconstruction(object):
             self.crop_box_msg.scale.x = max_bound[0] - min_bound[0]
             self.crop_box_msg.scale.y = max_bound[1] - min_bound[1]
             self.crop_box_msg.scale.z = max_bound[2] - min_bound[2]
-            self.crop_box_msg.pose.position.x = (min_bound[0] + max_bound[0]) / 2.0
-            self.crop_box_msg.pose.position.y = (min_bound[1] + max_bound[1]) / 2.0
-            self.crop_box_msg.pose.position.z = (min_bound[2] + max_bound[2]) / 2.0
+            self.crop_box_msg.pose.position.x = (
+                min_bound[0] + max_bound[0]) / 2.0
+            self.crop_box_msg.pose.position.y = (
+                min_bound[1] + max_bound[1]) / 2.0
+            self.crop_box_msg.pose.position.z = (
+                min_bound[2] + max_bound[2]) / 2.0
             self.crop_box_msg.pose.orientation.w = 1.0
             self.crop_box_msg.pose.orientation.x = 0.0
             self.crop_box_msg.pose.orientation.y = 0.0
@@ -221,6 +234,8 @@ class IndustrialReconstruction(object):
     def stopReconstructionCallback(self, req):
         rospy.loginfo("Stop Reconstruction")
         self.record = False
+        
+        output_pt = False
 
         while not self.integration_done:
             self.create_rate(1).sleep()
@@ -233,41 +248,56 @@ class IndustrialReconstruction(object):
                 data = self.tsdf_integration_data.popleft()
                 rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(data[1], data[0], self.depth_scale, self.depth_trunc,
                                                                           False)
-                self.tsdf_volume.integrate(rgbd, self.intrinsics, np.linalg.inv(data[2]))
-        mesh = self.tsdf_volume.extract_triangle_mesh()
-        mesh.compute_vertex_normals()
+                self.tsdf_volume.integrate(
+                    rgbd, self.intrinsics, np.linalg.inv(data[2]))
+        
+        # pointcloud output     
+        if output_pt:       
+            pcd = self.tsdf_volume.extract_point_cloud()
+            o3d.io.write_point_cloud(req.mesh_filepath, pcd, write_ascii=False, compressed=True)
+            rospy.loginfo("PointCloud Saved to " + req.mesh_filepath)
+            
+        # mesh output
+        else:        
+            mesh = self.tsdf_volume.extract_triangle_mesh()
+            mesh.compute_vertex_normals()
 
-        if self.crop_mesh:
-            cropped_mesh = mesh.crop(self.crop_box)
-        else:
-            cropped_mesh = mesh
+            if self.crop_mesh:
+                cropped_mesh = mesh.crop(self.crop_box)
+            else:
+                cropped_mesh = mesh
 
-        # Mesh filtering
-        for norm_filt in req.normal_filters:
-            dir = np.array([norm_filt.normal_direction.x, norm_filt.normal_direction.y, norm_filt.normal_direction.z]).reshape(3,1)
-            cropped_mesh = filterNormals(cropped_mesh, dir, np.radians(norm_filt.angle))
+            # Mesh filtering
+            for norm_filt in req.normal_filters:
+                dir = np.array([norm_filt.normal_direction.x, norm_filt.normal_direction.y,
+                            norm_filt.normal_direction.z]).reshape(3, 1)
+                cropped_mesh = filterNormals(
+                    cropped_mesh, dir, np.radians(norm_filt.angle))
 
-        triangle_clusters, cluster_n_triangles, cluster_area = (cropped_mesh.cluster_connected_triangles())
-        triangle_clusters = np.asarray(triangle_clusters)
-        cluster_n_triangles = np.asarray(cluster_n_triangles)
-        cluster_area = np.asarray(cluster_area)
-        triangles_to_remove = cluster_n_triangles[triangle_clusters] < req.min_num_faces
-        cropped_mesh.remove_triangles_by_mask(triangles_to_remove)
-        cropped_mesh.remove_unreferenced_vertices()
+            triangle_clusters, cluster_n_triangles, cluster_area = (
+                cropped_mesh.cluster_connected_triangles())
+            triangle_clusters = np.asarray(triangle_clusters)
+            cluster_n_triangles = np.asarray(cluster_n_triangles)
+            cluster_area = np.asarray(cluster_area)
+            triangles_to_remove = cluster_n_triangles[triangle_clusters] < req.min_num_faces
+            cropped_mesh.remove_triangles_by_mask(triangles_to_remove)
+            cropped_mesh.remove_unreferenced_vertices()
 
+            o3d.io.write_triangle_mesh(
+                req.mesh_filepath, cropped_mesh, False, True)
+            mesh_msg = meshToRos(cropped_mesh)
+            mesh_msg.header.stamp = rospy.Time.now()
+            mesh_msg.header.frame_id = self.relative_frame
+            self.mesh_pub.publish(mesh_msg)
+            rospy.loginfo("Mesh Saved to " + req.mesh_filepath)
 
-        o3d.io.write_triangle_mesh(req.mesh_filepath, cropped_mesh, False, True)
-        mesh_msg = meshToRos(cropped_mesh)
-        mesh_msg.header.stamp = rospy.Time.now()
-        mesh_msg.header.frame_id = self.relative_frame
-        self.mesh_pub.publish(mesh_msg)
-        rospy.loginfo("Mesh Saved to " + req.mesh_filepath)
-
-        if (req.archive_directory != ""):
-            rospy.loginfo("Archiving data to " + req.archive_directory)
-            self.archiveData(req.archive_directory)
-            archive_mesh_filepath = join(req.archive_directory, "integrated.ply")
-            o3d.io.write_triangle_mesh(archive_mesh_filepath, mesh, False, True)
+            if (req.archive_directory != ""):
+                rospy.loginfo("Archiving data to " + req.archive_directory)
+                self.archiveData(req.archive_directory)
+                archive_mesh_filepath = join(
+                    req.archive_directory, "integrated.ply")
+                o3d.io.write_triangle_mesh(
+                    archive_mesh_filepath, mesh, False, True)
 
         rospy.loginfo("DONE")
         return StopReconstructionResponse(success=True)
@@ -277,8 +307,10 @@ class IndustrialReconstruction(object):
             try:
                 # Convert your ROS Image message to OpenCV2
                 # TODO: Generalize image type
-                cv2_depth_img = self.bridge.imgmsg_to_cv2(depth_image_msg, "16UC1")
-                cv2_rgb_img = self.bridge.imgmsg_to_cv2(rgb_image_msg, rgb_image_msg.encoding)
+                cv2_depth_img = self.bridge.imgmsg_to_cv2(
+                    depth_image_msg, "16UC1")
+                cv2_rgb_img = self.bridge.imgmsg_to_cv2(
+                    rgb_image_msg, rgb_image_msg.encoding)
             except CvBridgeError:
                 rospy.logerr("Error converting ros msg to cv img")
                 return
@@ -288,7 +320,8 @@ class IndustrialReconstruction(object):
                 if (self.frame_count > 30):
                     data = self.sensor_data.popleft()
                     try:
-                        gm_tf_stamped = self.buffer.lookup_transform(self.relative_frame, self.tracking_frame, data[2])
+                        gm_tf_stamped = self.buffer.lookup_transform(
+                            self.relative_frame, self.tracking_frame, data[2])
                     except Exception as e:
                         rospy.logerr("Failed to get transform: " + str(e))
 
@@ -297,7 +330,8 @@ class IndustrialReconstruction(object):
                     rgb_r_quat = Quaternion(rgb_r)
 
                     tran_dist = np.linalg.norm(rgb_t - self.prev_pose_tran)
-                    rot_dist = Quaternion.absolute_distance(Quaternion(self.prev_pose_rot), rgb_r_quat)
+                    rot_dist = Quaternion.absolute_distance(
+                        Quaternion(self.prev_pose_rot), rgb_r_quat)
 
                     # TODO: Testing if this is a good practice, min jump to accept data
                     if (tran_dist >= self.translation_distance) or (rot_dist >= self.rotational_distance):
@@ -308,18 +342,20 @@ class IndustrialReconstruction(object):
                         rgb_pose[1, 3] = rgb_t[1]
                         rgb_pose[2, 3] = rgb_t[2]
 
-                        self.depth_images.append(data[0])
-                        self.color_images.append(data[1])
-                        self.rgb_poses.append(rgb_pose)
+                        # self.depth_images.append(data[0])
+                        # self.color_images.append(data[1])
+                        # self.rgb_poses.append(rgb_pose)
                         if self.live_integration and self.tsdf_volume is not None:
                             self.integration_done = False
                             try:
                                 rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(data[1], data[0], self.depth_scale,
                                                                                           self.depth_trunc, False)
-                                self.tsdf_volume.integrate(rgbd, self.intrinsics, np.linalg.inv(rgb_pose))
+                                self.tsdf_volume.integrate(
+                                    rgbd, self.intrinsics, np.linalg.inv(rgb_pose))
                                 self.integration_done = True
                                 self.processed_frame_count += 1
                                 if self.processed_frame_count % 50 == 0:
+                                    # write mesh
                                     mesh = self.tsdf_volume.extract_triangle_mesh()
                                     if self.crop_mesh:
                                         cropped_mesh = mesh.crop(self.crop_box)
@@ -330,11 +366,13 @@ class IndustrialReconstruction(object):
                                     mesh_msg.header.frame_id = self.relative_frame
                                     self.mesh_pub.publish(mesh_msg)
                             except:
-                                rospy.logerr("Error processing images into tsdf")
+                                rospy.logerr(
+                                    "Error processing images into tsdf")
                                 self.integration_done = True
                                 return
                         else:
-                            self.tsdf_integration_data.append([data[0], data[1], rgb_pose])
+                            self.tsdf_integration_data.append(
+                                [data[0], data[1], rgb_pose])
                             self.processed_frame_count += 1
 
                 self.frame_count += 1
