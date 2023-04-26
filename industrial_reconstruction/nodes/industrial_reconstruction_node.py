@@ -250,7 +250,8 @@ class IndustrialReconstruction(object):
                                                                           False)
                 self.tsdf_volume.integrate(
                     rgbd, self.intrinsics, np.linalg.inv(data[2]))
-        
+
+        # TODO: add option for pointcloud output to service msg
         # pointcloud output     
         if output_pt:       
             pcd = self.tsdf_volume.extract_point_cloud()
@@ -342,6 +343,7 @@ class IndustrialReconstruction(object):
                         rgb_pose[1, 3] = rgb_t[1]
                         rgb_pose[2, 3] = rgb_t[2]
 
+                        # NOTE: Commented out to improve performance
                         # self.depth_images.append(data[0])
                         # self.color_images.append(data[1])
                         # self.rgb_poses.append(rgb_pose)
